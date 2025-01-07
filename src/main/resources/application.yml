@@ -1,0 +1,50 @@
+server:
+  port: 8005
+
+spring:
+  config:
+    import: configserver:http://localhost:9296
+  zipkin:
+    baseUrl: ${ZIPKIN_URL:http://zipkin:9411}
+  application:
+    name: IntraOralBillService
+  datasource:
+    url: jdbc:mysql://localhost:3306/DocMACCdbBill?autoReconnect=true&serverTimezone=UTC&useSSL=False&allowPublicKeyRetrieval=true #change this to your database url
+    password: Qwerty.12345 #change this to your database username
+    username: root #change this to your database password
+  jpa:
+    database-platform: org.springframework.orm.jpa.vendor.Database.MYSQL
+    generate-ddl: true
+    show-sql: true
+    hibernate:
+      ddl-auto: update # update or create
+    properties:
+      hibernate:
+        globally_quoted_identifiers: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+
+item:
+  request:
+    url:
+      intraoralExamination: localhost:8085
+    api:
+      intraoralExaminationGetList: /api/v1/intraOral/{profileId}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      externalIntraoralExamination:
+        event-consumer-buffer-size: 10
+        registerHealthIndicator: true
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
