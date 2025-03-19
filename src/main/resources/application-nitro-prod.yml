@@ -1,0 +1,9 @@
+
+spring:
+  config:
+    import: optional:configserver:http://localhost:9296
+
+item:
+  request:
+    url:
+      intraoralExamination: localhost:8085

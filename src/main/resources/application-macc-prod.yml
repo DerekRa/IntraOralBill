@@ -1,0 +1,13 @@
+spring:
+  config:
+    import: configserver:${CONFIG_SERVER_URL:https://localhost:9296}
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/DocMACCdbBill
+    password: d0cM@CCdbAkc3s!69 #change this to your database username
+    username: root #change this to your database password
+    driverClassName: com.mysql.cj.jdbc.Driver
+
+item:
+  request:
+    url:
+      intraoralExamination: intraoral-examination-svc

@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-@RequestMapping("api/v1/bill")
+@RequestMapping("api/v1/intraOralBill")
 public class BillController extends BillServiceResponseEntity {
 
   private final BillService billService;
@@ -44,7 +45,7 @@ public class BillController extends BillServiceResponseEntity {
     this.billService = billService;
   }
   @GetMapping(FORWARD_SLASH + TOTAL_BREAKDOWN)
-  public ResponseEntity<BillBreakdownResponse> getBillBreakdownList(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure){
+  public ResponseEntity<BillBreakdownResponse> getBillBreakdownList(@RequestParam Long profileId, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateOfProcedure){
     log.info("Get Bill Total and Breakdown with Request parameters are profile ID: {} and dateOfProcedure : {}", profileId, dateOfProcedure);
     return validationOnBillBreakdownRequest(profileId).getStatusCode().equals(OK) ?
         billService.getIntraOralBill(profileId, dateOfProcedure) :
@@ -67,7 +68,7 @@ public class BillController extends BillServiceResponseEntity {
         validationOnAmountDataRequest(amountData);
   }
   @GetMapping(FORWARD_SLASH + TOTALS)
-  public ResponseEntity<AmountTotal> getAmountTotals(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure){
+  public ResponseEntity<AmountTotal> getAmountTotals(@RequestParam Long profileId, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateOfProcedure){
     log.info("Request parameters are profile ID: {} and dateOfProcedure : {}", profileId, dateOfProcedure);
     return validationOnAmountTotalRequest(profileId).getStatusCode().equals(OK) ?
         billService.getIntraOralAmountTotals(profileId, dateOfProcedure) :

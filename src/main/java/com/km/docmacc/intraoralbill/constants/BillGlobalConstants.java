@@ -1,7 +1,7 @@
 package com.km.docmacc.intraoralbill.constants;
 
 public class BillGlobalConstants {
-
+  private BillGlobalConstants(){}
   /*Controller*/
   public static final String BREAKDOWN = "breakdown";
   public static final String TOTALS = "totals";
