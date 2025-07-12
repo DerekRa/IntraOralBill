@@ -1,11 +1,19 @@
 server:
-  port: 8005
+  port: ${SERVER_PORT:8005}
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api/v1/intraOralBill/api-docs
+  swagger-ui:
+    enabled: true
+    path: /api/v1/intraOralBill/api-docs/swagger-ui.html
 
 spring:
   application:
-    name: IntraOralBillService
+    name: ${SERVICE_NAME:IntraOralBillService}
   profiles:
-    active: macc-prod #nitro-prod or desktop-prod
+    active: ${ACTIVE_PROFILE:nitro-dev} #nitro-dev or desktop-prod or macc-prod or nitro-kub-prod
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:3306/DocMACCdbBill
     password: Qwerty.12345 #change this to your database username
@@ -30,7 +38,7 @@ spring:
 item:
   request:
     api:
-      intraoralExaminationGetList: /api/v1/intraOral/{profileId}
+      intraoralExaminationGetList: /api/v1/intraoral/{profileId}
 
 resilience4j:
   circuitbreaker:
