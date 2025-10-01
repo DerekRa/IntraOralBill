@@ -1,20 +1,27 @@
 package com.km.docmacc.intraoralbill.service.impl;
 
+import com.km.docmacc.intraoralbill.clients.IntraOralExaminationClient;
 import com.km.docmacc.intraoralbill.clients.dto.ConditionProcedureResponse;
 import com.km.docmacc.intraoralbill.clients.dto.IntraoralExaminationResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountTotal;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdown;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdownResponse;
+import com.km.docmacc.intraoralbill.model.dto.*;
 import com.km.docmacc.intraoralbill.model.entity.AmountCharged;
 import com.km.docmacc.intraoralbill.model.entity.AmountPayment;
+import com.km.docmacc.intraoralbill.model.entity.IntraoralTreatmentPlanConsumer;
 import com.km.docmacc.intraoralbill.repository.ChargedRepository;
+import com.km.docmacc.intraoralbill.repository.IntraoralTreatmentPlanConsumerRepository;
 import com.km.docmacc.intraoralbill.repository.PaymentRepository;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.function.StreamBridge;
+
+import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.PENDING;
+import static org.springframework.http.HttpStatus.OK;
 
 @Slf4j
 public class BillServiceBuilder extends BillServiceResponseEntity {
@@ -22,6 +29,12 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
   private ChargedRepository chargedRepository;
   @Autowired
   private PaymentRepository paymentRepository;
+  @Autowired
+  private IntraoralTreatmentPlanConsumerRepository intraoralTreatmentPlanConsumerRepository;
+  @Autowired
+  private StreamBridge streamBridge;
+  @Autowired
+  private IntraOralExaminationClient intraOralExaminationClient;
 
   protected BillBreakdownResponse buildBillBreakdownResponse(List<BillBreakdown> intraOralBillBreakdownList, String bill, String balance, String payment){
     return BillBreakdownResponse.builder()
@@ -166,5 +179,62 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
       allBalance += balance;
     }
     return buildAmountTotalsResponse(String.valueOf(allBill), String.valueOf(allBalance), String.valueOf(allPayment));
+  }
+  protected IntraoralTreatmentPlanConsumer buildIntraoralTreatmentPlanConsumer(Long profileId, LocalDate dateOfProcedure, Integer toothNumber){
+    return IntraoralTreatmentPlanConsumer.builder()
+            .profileId(profileId)
+            .dateOfProcedure(dateOfProcedure)
+            .toothNumber(toothNumber)
+            .consumerStatus(PENDING)
+            .communicationSuccessSent(false)
+            .createdDateTime(ZonedDateTime.now())
+            .createdDate(LocalDate.now())
+            .createdById("Intraoral_Bill_Service_ID")
+            .createdByName("Intraoral_Bill_Service")
+            .build();
+  }
+  protected IntraoralTreatmentPlanConsumer buildIntraoralTreatmentPlanConsumer(IntraoralTreatmentPlanConsumer updateIntraoralTreatmentPlanConsumer, CommunicationBillSwitchStatus communicationSwitchStatus){
+    updateIntraoralTreatmentPlanConsumer.setConsumerStatus(communicationSwitchStatus.getCommunicationStatus());
+    updateIntraoralTreatmentPlanConsumer.setUpdatedById("Intraoral_Treatment_Plan_Consumer_Service_ID");
+    updateIntraoralTreatmentPlanConsumer.setUpdatedByName("Intraoral_Treatment_Plan_Consumer_Service");
+    updateIntraoralTreatmentPlanConsumer.setUpdatedDate(LocalDate.now());
+    updateIntraoralTreatmentPlanConsumer.setUpdatedDateTime(ZonedDateTime.now());
+    return updateIntraoralTreatmentPlanConsumer;
+  }
+  protected void sendCommunication(Long profileId, LocalDate dateOfProcedure, Integer toothNumber){
+    String totalBill = "0";
+    String totalBalance = "0";
+    String totalPayment = "0";
+    List<BillBreakdown> intraOralBillBreakdownTempList = new ArrayList<>();
+    AmountTotal amountTotal = new AmountTotal();
+    List<IntraoralExaminationResponse> getIntraoralExaminationList = intraOralExaminationClient.getIntraoralExaminationList(profileId);
+    log.info("Data from getIntraoralExaminationList ::{}",getIntraoralExaminationList);
+    if(!getIntraoralExaminationList.isEmpty()){
+      /*Build category, procedure done, tooth number*/
+      buildBillBreakdownList(intraOralBillBreakdownTempList,getIntraoralExaminationList,dateOfProcedure);
+
+      /*Update amount charged, discount, amount paid, payment, balance**/
+      amountTotal = buildAmountTotals(intraOralBillBreakdownTempList, profileId, dateOfProcedure);
+    } else {
+      amountTotal = buildAmountTotalsResponse(totalBill,totalBalance,totalPayment);
+    }
+
+    IntraoralTreatmentPlanConsumer consumerSaved =  intraoralTreatmentPlanConsumerRepository.save(buildIntraoralTreatmentPlanConsumer(profileId, dateOfProcedure, toothNumber));
+    log.info("IntraoralTreatmentPlanConsumer save : "+ consumerSaved);
+
+    IntraoralTreatmentPlanConsumerDto intraoralBillRequestDto = IntraoralTreatmentPlanConsumerDto.builder()
+            .consumerId(consumerSaved.getId())
+            .profileId(consumerSaved.getProfileId())
+            .toothNumber(consumerSaved.getToothNumber())
+            .dateOfProcedure(consumerSaved.getDateOfProcedure())
+            .amountTotal(amountTotal)
+            .build();
+    var communication = streamBridge.send(
+            "sendIntraoralBillService-out-0",
+            intraoralBillRequestDto
+    );
+    log.info("Communication sent successfully: {}", communication);
+    consumerSaved.setCommunicationSuccessSent(communication);
+    intraoralTreatmentPlanConsumerRepository.save(consumerSaved);
   }
 }

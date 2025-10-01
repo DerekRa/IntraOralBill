@@ -36,4 +36,6 @@ public class BillGlobalConstants {
   public static final String PROCEDURE_DONE_EMPTY = " Failed because procedure done is empty.";
   public static final String TOOTH_NUMBER_EMPTY = " Failed because tooth number is empty.";
   public static final String CREATED_BY_NAME_EMPTY = " Failed because it needs to logout and re-login due to session expired.";
+  /*Consumer*/
+  public static final String PENDING = "pending";
 }

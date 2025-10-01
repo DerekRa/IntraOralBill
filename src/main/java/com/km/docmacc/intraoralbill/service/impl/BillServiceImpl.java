@@ -18,23 +18,17 @@ import static org.springframework.http.HttpStatus.OK;
 
 import com.km.docmacc.intraoralbill.clients.IntraOralExaminationClient;
 import com.km.docmacc.intraoralbill.clients.dto.IntraoralExaminationResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountChargedRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountChargedResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountData;
-import com.km.docmacc.intraoralbill.model.dto.PaginationRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountPaymentRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountPaymentResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountTotal;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdown;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdownResponse;
-import com.km.docmacc.intraoralbill.model.dto.HttpResponse;
+import com.km.docmacc.intraoralbill.model.dto.*;
 import com.km.docmacc.intraoralbill.model.entity.AmountCharged;
 import com.km.docmacc.intraoralbill.model.entity.AmountPayment;
+import com.km.docmacc.intraoralbill.model.entity.IntraoralTreatmentPlanConsumer;
 import com.km.docmacc.intraoralbill.repository.ChargedRepository;
+import com.km.docmacc.intraoralbill.repository.IntraoralTreatmentPlanConsumerRepository;
 import com.km.docmacc.intraoralbill.repository.PaymentRepository;
 import com.km.docmacc.intraoralbill.service.BillService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -59,6 +53,8 @@ public class BillServiceImpl extends BillServiceBuilder implements BillService {
   private ChargedRepository chargedRepository;
   @Autowired
   private IntraOralExaminationClient intraOralExaminationClient;
+  @Autowired
+  private IntraoralTreatmentPlanConsumerRepository intraoralTreatmentPlanConsumerRepository;
 
   /**
    * @param profileId
@@ -288,6 +284,7 @@ public class BillServiceImpl extends BillServiceBuilder implements BillService {
             .createdById(amountChargedRequest.getCreatedById())
             .createdByName(amountChargedRequest.getCreatedByName())
         .build());
+    sendCommunication(amountChargedSaved.getProfileId(), amountChargedSaved.getDateOfProcedure(), amountChargedSaved.getToothNumber());
     return response(CREATED, "Charged Amount " + amountChargedSaved.getChargedAmount() + SAVE_SUCCESS);
   }
 
@@ -311,6 +308,20 @@ public class BillServiceImpl extends BillServiceBuilder implements BillService {
             .createdByName(amountPaymentRequest.getCreatedByName())
             .createdById(amountPaymentRequest.getCreatedById())
         .build());
+    sendCommunication(amountPaymentSaved.getProfileId(), amountPaymentSaved.getDateOfProcedure(), amountPaymentSaved.getToothNumber());
     return response(CREATED, "Payment Amount " + amountPaymentSaved.getPaymentAmount() + SAVE_SUCCESS);
+  }
+
+  /**
+   * @param communicationSwitchStatus
+   */
+  @Override
+  public void updateIntraoralTreatmentPlanConsumer(CommunicationBillSwitchStatus communicationSwitchStatus) {
+    Optional<IntraoralTreatmentPlanConsumer> intraoralTreatmentPlanConsumer = intraoralTreatmentPlanConsumerRepository.findById(communicationSwitchStatus.getIntraoralBillConsumerId());
+    if(intraoralTreatmentPlanConsumer.isPresent()){
+      intraoralTreatmentPlanConsumerRepository.save(buildIntraoralTreatmentPlanConsumer(intraoralTreatmentPlanConsumer.get(), communicationSwitchStatus));
+    } else {
+      log.error("No Intraoral Treatment Plan Consumer found for id : {}", communicationSwitchStatus.getIntraoralBillConsumerId());
+    }
   }
 }
