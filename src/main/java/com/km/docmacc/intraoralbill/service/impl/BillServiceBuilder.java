@@ -12,15 +12,15 @@ import com.km.docmacc.intraoralbill.repository.IntraoralTreatmentPlanConsumerRep
 import com.km.docmacc.intraoralbill.repository.PaymentRepository;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.stream.function.StreamBridge;
 
-import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.PENDING;
+import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.*;
 import static org.springframework.http.HttpStatus.OK;
 
 @Slf4j
@@ -36,7 +36,7 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
   @Autowired
   private IntraOralExaminationClient intraOralExaminationClient;
 
-  protected BillBreakdownResponse buildBillBreakdownResponse(List<BillBreakdown> intraOralBillBreakdownList, String bill, String balance, String payment){
+  protected BillBreakdownResponse buildBillBreakdownResponse(List<BillBreakdownGroup> intraOralBillBreakdownList, String bill, String balance, String payment){
     return BillBreakdownResponse.builder()
         .billBreakdowns(intraOralBillBreakdownList)
         .totalBill(bill)
@@ -87,6 +87,9 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
       List<BillBreakdown> intraOralBillBreakdownList,
       IntraoralExaminationResponse intraoralExaminationResponse,
       List<ConditionProcedureResponse> conditionProcedureResponses) {
+    if (conditionProcedureResponses == null || conditionProcedureResponses.isEmpty()) {
+      return;
+    }
     for (ConditionProcedureResponse conditionProcedureResponse: conditionProcedureResponses){
       if(conditionProcedureResponse.getChecked()){
         intraOralBillBreakdownList.add(BillBreakdown.builder()
@@ -98,77 +101,239 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
     }
   }
 
-  protected BillBreakdownResponse buildUpdateBillBreakdownList(List<BillBreakdown> intraOralBillBreakdownList, List<BillBreakdown> intraOralBillBreakdownTempList,
+  protected BillBreakdownResponse buildUpdateBillBreakdownList(List<BillBreakdownGroup> intraOralBillBreakdownList, List<BillBreakdown> intraOralBillBreakdownTempList,
       Long profileId, LocalDate dateOfProcedure){
+
+    /*workout sorting here and create new function to separate*/
+    List<BillBreakdownGroup> orderedBreakdownList = formAndSortBillBreakdownList(intraOralBillBreakdownTempList);
+
     double allBill = 0.0d;
     double allPayment = 0.0d;
     double allBalance = 0.0d;
-    for (BillBreakdown billBreakdown: intraOralBillBreakdownTempList){
+    //formulate first intraOralBillBreakdownTempList to group by category, procedure done, tooth number
+
+    for (BillBreakdownGroup billBreakdown: orderedBreakdownList){
       String amountCharged = "0.0";
       String discount = "0";
       Double amountPaid = 0.0d;
       String payment = "0";
-      Optional<List<AmountCharged>> optionalAmountChargedList = chargedRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumber(), billBreakdown.getProcedureDone());
-      if(optionalAmountChargedList.isPresent()){
-        optionalAmountChargedList.get().sort(Comparator.comparing(AmountCharged::getCreatedDateTime).reversed());
-        Optional<AmountCharged> optionalAmountCharged = optionalAmountChargedList.get().stream().findFirst();
+      Double balance = 0.0d;
+      List<AmountCharged> optionalAmountChargedList = chargedRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumbers(), billBreakdown.getProcedureDone());
+      if(optionalAmountChargedList.size() > 0){
+        optionalAmountChargedList.sort(Comparator.comparing(AmountCharged::getCreatedDateTime).reversed());
+        Optional<AmountCharged> optionalAmountCharged = optionalAmountChargedList.stream().findFirst();
         if(optionalAmountCharged.isPresent()){
           amountCharged = optionalAmountCharged.get().getChargedAmount();
           discount = optionalAmountCharged.get().getDiscount();
+          billBreakdown.setAmountCharged(amountCharged);
+          billBreakdown.setDiscount(discount);
         }
       }
-      Optional<List<AmountPayment>> optionalAmountPaymentList = paymentRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumber(), billBreakdown.getProcedureDone());
-      if(optionalAmountPaymentList.isPresent()){
-        optionalAmountPaymentList.get().sort(Comparator.comparing(AmountPayment::getCreatedDateTime).reversed());
-        Optional<AmountPayment> optionalAmountPayment= optionalAmountPaymentList.get().stream().findFirst();
+      List<AmountPayment> optionalAmountPaymentList = paymentRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumbers(), billBreakdown.getProcedureDone());
+      if(optionalAmountPaymentList.size() > 0){
+        optionalAmountPaymentList.sort(Comparator.comparing(AmountPayment::getCreatedDateTime).reversed());
+        Optional<AmountPayment> optionalAmountPayment= optionalAmountPaymentList.stream().findFirst();
         if(optionalAmountPayment.isPresent()){
           payment = optionalAmountPayment.get().getPaymentAmount();
-          for (AmountPayment amountPayment: optionalAmountPaymentList.get()){
+          billBreakdown.setPayment(payment);
+          for (AmountPayment amountPayment: optionalAmountPaymentList){
             amountPaid += Double.parseDouble(amountPayment.getPaymentAmount());
           }
+          billBreakdown.setAmountPaid(String.valueOf(amountPaid));
         }
       }
-      Double balance = (Double.parseDouble(amountCharged) - amountPaid) - Double.parseDouble(discount);
-      intraOralBillBreakdownList.add(BillBreakdown.builder()
+      balance = (Double.parseDouble(amountCharged) - amountPaid) - Double.parseDouble(discount);
+      billBreakdown.setBalance(String.valueOf(balance));
+      /*intraOralBillBreakdownList.add(BillBreakdownGroup.builder()
               .category(billBreakdown.getCategory())
-              .toothNumber(billBreakdown.getToothNumber())
+              .toothNumbers(String.valueOf(billBreakdown.getToothNumbers()))
               .procedureDone(billBreakdown.getProcedureDone())
               .amountCharged(amountCharged)
               .discount(discount)
               .amountPaid(String.valueOf(amountPaid))
               .payment(payment)
               .balance(String.valueOf(balance))
-          .build());
+          .build());*/
       allBill += Double.parseDouble(amountCharged) - Double.parseDouble(discount);
       allPayment += amountPaid;
       allBalance += balance;
     }
-    return buildBillBreakdownResponse(intraOralBillBreakdownList, String.valueOf(allBill), String.valueOf(allBalance), String.valueOf(allPayment));
+
+    /*workout sorting here and create new function to separate*/
+//    List<BillBreakdownGroup> orderedBreakdownList = formAndSortBillBreakdownList(intraOralBillBreakdownList);
+    return buildBillBreakdownResponse(orderedBreakdownList, String.valueOf(allBill), String.valueOf(allBalance), String.valueOf(allPayment));
   }
+
+  private List<BillBreakdownGroup> formAndSortBillBreakdownList(List<BillBreakdown> intraOralBillBreakdownList) {
+
+    intraOralBillBreakdownList.sort(Comparator.comparing(BillBreakdown::getCategory).thenComparing(BillBreakdown::getProcedureDone).thenComparing(BillBreakdown::getToothNumber).reversed());
+    Set<Map<String, String>> categoryProcedureDoneSet = getMapsCategoryProcedureDone(intraOralBillBreakdownList);
+
+    Map<Map<String, String>, Map<String, Set<String>>> groupedTeethNumbers = new HashMap<>();
+    Map<Map<String, String>, Double> groupedAmountCharged = new HashMap<>();
+    Map<Map<String, String>, Double> groupedDiscount = new HashMap<>();
+    Map<Map<String, String>, Double> groupedAmountPaid = new HashMap<>();
+    Map<Map<String, String>, Double> groupedPayment = new HashMap<>();
+    Map<Map<String, String>, Double> groupedBalance = new HashMap<>();
+    for(Map<String, String> categoryProcedureDone: categoryProcedureDoneSet){
+      List<String> teethNumbersPerCategoryProcedureDone = new ArrayList<>();
+      double amountChargedPerCategoryProcedureDone = 0.0d;
+      double discountPerCategoryProcedureDone = 0.0d;
+      double amountPaidPerCategoryProcedureDone = 0.0d;
+      double paymentPerCategoryProcedureDone = 0.0d;
+      double balancePerCategoryProcedureDone = 0.0d;
+      for (BillBreakdown billBreakdown: intraOralBillBreakdownList){
+        if(billBreakdown.getCategory().equals(categoryProcedureDone.get("category")) &&
+            billBreakdown.getProcedureDone().equals(categoryProcedureDone.get("procedureDone"))){
+          teethNumbersPerCategoryProcedureDone.add(String.valueOf(billBreakdown.getToothNumber()));
+          amountChargedPerCategoryProcedureDone += Double.parseDouble(StringUtils.isEmpty(billBreakdown.getAmountCharged()) ? "0.0" : billBreakdown.getAmountCharged());
+          discountPerCategoryProcedureDone += Double.parseDouble(StringUtils.isEmpty(billBreakdown.getDiscount()) ? "0.0" : billBreakdown.getDiscount());
+          amountPaidPerCategoryProcedureDone += Double.parseDouble(StringUtils.isEmpty(billBreakdown.getAmountPaid()) ? "0.0" : billBreakdown.getAmountPaid());
+          paymentPerCategoryProcedureDone += Double.parseDouble(StringUtils.isEmpty(billBreakdown.getPayment()) ? "0.0" : billBreakdown.getPayment());
+          balancePerCategoryProcedureDone += Double.parseDouble(StringUtils.isEmpty(billBreakdown.getBalance()) ? "0.0" : billBreakdown.getBalance());
+        }
+      }
+      groupedTeethNumbers.put(categoryProcedureDone, groupTeethByType(teethNumbersPerCategoryProcedureDone));
+      groupedAmountCharged.put(categoryProcedureDone, amountChargedPerCategoryProcedureDone);
+      groupedDiscount.put(categoryProcedureDone, discountPerCategoryProcedureDone);
+      groupedAmountPaid.put(categoryProcedureDone, amountPaidPerCategoryProcedureDone);
+      groupedPayment.put(categoryProcedureDone, paymentPerCategoryProcedureDone);
+      groupedBalance.put(categoryProcedureDone, balancePerCategoryProcedureDone);
+    }
+
+    log.info("Grouped Teeth by Type : {}", groupedTeethNumbers);
+
+    List<BillBreakdownGroup> uniqueBillBreakdownList = new ArrayList<>();
+    for (Map.Entry<Map<String, String>, Map<String, Set<String>>> entry : groupedTeethNumbers.entrySet()) {
+      Map<String, String> categoryProcedureDone = entry.getKey();
+      Map<String, Set<String>> teethTypeMap = entry.getValue();
+
+      for (Map.Entry<String, Set<String>> teethEntry : teethTypeMap.entrySet()) {
+        String teethType = teethEntry.getKey();
+        Set<String> teethNumbers = teethEntry.getValue();
+
+        if (!teethNumbers.isEmpty()) {
+          List<String> sortedTeethNumbers = new ArrayList<>(teethNumbers);
+          sortedTeethNumbers.sort(Comparator.naturalOrder());
+
+          String toothNumbersString = sortedTeethNumbers.toString().replaceAll("[\\[\\]\\s]", "");
+
+          uniqueBillBreakdownList.add(BillBreakdownGroup.builder()
+              .category(categoryProcedureDone.get("category"))
+              .procedureDone(categoryProcedureDone.get("procedureDone"))
+              .toothNumbers(toothNumbersString)
+              .build());
+        }
+      }
+    }
+    for (BillBreakdownGroup billBreakdownGroup: uniqueBillBreakdownList){
+      for (Map.Entry<Map<String, String>, Double> entry : groupedAmountCharged.entrySet()) {
+        Map<String, String> keyMap = entry.getKey();
+        if(billBreakdownGroup.getCategory().equals(keyMap.get("category")) &&
+            billBreakdownGroup.getProcedureDone().equals(keyMap.get("procedureDone"))){
+          billBreakdownGroup.setAmountCharged(String.valueOf(groupedAmountCharged.get(keyMap)));
+        }
+      }
+      for (Map.Entry<Map<String, String>, Double> entry : groupedDiscount.entrySet()) {
+        Map<String, String> keyMap = entry.getKey();
+        if(billBreakdownGroup.getCategory().equals(keyMap.get("category")) &&
+            billBreakdownGroup.getProcedureDone().equals(keyMap.get("procedureDone"))){
+          billBreakdownGroup.setDiscount(String.valueOf(groupedDiscount.get(keyMap)));
+        }
+      }
+      for (Map.Entry<Map<String, String>, Double> entry : groupedAmountPaid.entrySet()) {
+          Map<String, String> keyMap = entry.getKey();
+          if(billBreakdownGroup.getCategory().equals(keyMap.get("category")) &&
+              billBreakdownGroup.getProcedureDone().equals(keyMap.get("procedureDone"))){
+          billBreakdownGroup.setAmountPaid(String.valueOf(groupedAmountPaid.get(keyMap)));
+          }
+      }
+      for (Map.Entry<Map<String, String>, Double> entry : groupedPayment.entrySet()) {
+          Map<String, String> keyMap = entry.getKey();
+          if(billBreakdownGroup.getCategory().equals(keyMap.get("category")) &&
+              billBreakdownGroup.getProcedureDone().equals(keyMap.get("procedureDone"))){
+          billBreakdownGroup.setPayment(String.valueOf(groupedPayment.get(keyMap)));
+          }
+      }
+      for (Map.Entry<Map<String, String>, Double> entry : groupedBalance.entrySet()) {
+          Map<String, String> keyMap = entry.getKey();
+          if(billBreakdownGroup.getCategory().equals(keyMap.get("category")) &&
+              billBreakdownGroup.getProcedureDone().equals(keyMap.get("procedureDone"))){
+          billBreakdownGroup.setBalance(String.valueOf(groupedBalance.get(keyMap)));
+          }
+      }
+    }
+
+    log.info("Unique Bill Breakdown List : {}", uniqueBillBreakdownList);
+
+    return uniqueBillBreakdownList;
+  }
+
+  @NotNull
+  private static Set<Map<String, String>> getMapsCategoryProcedureDone(List<BillBreakdown> intraOralBillBreakdownList) {
+    Set<Map<String, String>> categoryProcedureDoneSet = new HashSet<>();
+    for (BillBreakdown billBreakdown: intraOralBillBreakdownList){
+      Map<String, String> categoryProcedureDoneMap = new HashMap<>();
+      categoryProcedureDoneMap.put("category", billBreakdown.getCategory());
+      categoryProcedureDoneMap.put("procedureDone", billBreakdown.getProcedureDone());
+      if(!categoryProcedureDoneSet.contains(categoryProcedureDoneMap)){
+        categoryProcedureDoneSet.add(categoryProcedureDoneMap);
+      }
+    }
+    return categoryProcedureDoneSet;
+  }
+
+  private Map<String, Set<String>> groupTeethByType(List<String> items) {
+    Map<String, Set<String>> groupedTeeth = new HashMap<>();
+    groupedTeeth.put("deciduousMaxillary", new HashSet<>());
+    groupedTeeth.put("deciduousMandibular", new HashSet<>());
+    groupedTeeth.put("permanentMaxillary", new HashSet<>());
+    groupedTeeth.put("permanentMandibular", new HashSet<>());
+
+    for (String toothNumber : items) {
+      if (DECIDUOUS_TEETH_MAXILLARY.contains(Integer.valueOf(toothNumber))) {
+        groupedTeeth.get("deciduousMaxillary").add(toothNumber);
+      } else if (DECIDUOUS_TEETH_MANDIBULAR.contains(Integer.valueOf(toothNumber))) {
+        groupedTeeth.get("deciduousMandibular").add(toothNumber);
+      } else if (PERMANENT_TEETH_MAXILLARY.contains(Integer.valueOf(toothNumber))) {
+        groupedTeeth.get("permanentMaxillary").add(toothNumber);
+      } else if (PERMANENT_TEETH_MANDIBULAR.contains(Integer.valueOf(toothNumber))) {
+        groupedTeeth.get("permanentMandibular").add(toothNumber);
+      }
+    }
+    log.info("Before removing empty groups : {}", groupedTeeth);
+    groupedTeeth.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+    log.info("Grouped Teeth : {}", groupedTeeth);
+    return groupedTeeth;
+  }
+
   protected AmountTotal buildAmountTotals(List<BillBreakdown> intraOralBillBreakdownTempList,
       Long profileId, LocalDate dateOfProcedure){
+
+    List<BillBreakdownGroup> orderedBreakdownList = formAndSortBillBreakdownList(intraOralBillBreakdownTempList);
+
     double allBill = 0.0d;
     double allPayment = 0.0d;
     double allBalance = 0.0d;
-    for (BillBreakdown billBreakdown: intraOralBillBreakdownTempList){
+    for (BillBreakdownGroup billBreakdown: orderedBreakdownList){
       String amountCharged = "0.0";
       String discount = "0";
       double amountPaid = 0.0d;
-      Optional<List<AmountCharged>> optionalAmountChargedList = chargedRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumber(), billBreakdown.getProcedureDone());
-      if(optionalAmountChargedList.isPresent()){
-        optionalAmountChargedList.get().sort(Comparator.comparing(AmountCharged::getCreatedDateTime).reversed());
-        Optional<AmountCharged> optionalAmountCharged = optionalAmountChargedList.get().stream().findFirst();
+      List<AmountCharged> optionalAmountChargedList = chargedRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumbers(), billBreakdown.getProcedureDone());
+      if(optionalAmountChargedList.size() > 0){
+        optionalAmountChargedList.sort(Comparator.comparing(AmountCharged::getCreatedDateTime).reversed());
+        Optional<AmountCharged> optionalAmountCharged = optionalAmountChargedList.stream().findFirst();
         if(optionalAmountCharged.isPresent()){
           amountCharged = optionalAmountCharged.get().getChargedAmount();
           discount = optionalAmountCharged.get().getDiscount();
         }
       }
-      Optional<List<AmountPayment>> optionalAmountPaymentList = paymentRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumber(), billBreakdown.getProcedureDone());
-      if(optionalAmountPaymentList.isPresent()){
-        optionalAmountPaymentList.get().sort(Comparator.comparing(AmountPayment::getCreatedDateTime).reversed());
-        Optional<AmountPayment> optionalAmountPayment= optionalAmountPaymentList.get().stream().findFirst();
+      List<AmountPayment> optionalAmountPaymentList = paymentRepository.findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDone(profileId, dateOfProcedure, billBreakdown.getCategory(), billBreakdown.getToothNumbers(), billBreakdown.getProcedureDone());
+      if(optionalAmountPaymentList.size() > 0){
+        optionalAmountPaymentList.sort(Comparator.comparing(AmountPayment::getCreatedDateTime).reversed());
+        Optional<AmountPayment> optionalAmountPayment= optionalAmountPaymentList.stream().findFirst();
         if(optionalAmountPayment.isPresent()){
-          for (AmountPayment amountPayment: optionalAmountPaymentList.get()){
+          for (AmountPayment amountPayment: optionalAmountPaymentList){
             amountPaid += Double.parseDouble(amountPayment.getPaymentAmount());
           }
         }
@@ -180,11 +345,11 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
     }
     return buildAmountTotalsResponse(String.valueOf(allBill), String.valueOf(allBalance), String.valueOf(allPayment));
   }
-  protected IntraoralTreatmentPlanConsumer buildIntraoralTreatmentPlanConsumer(Long profileId, LocalDate dateOfProcedure, Integer toothNumber){
+  protected IntraoralTreatmentPlanConsumer buildIntraoralTreatmentPlanConsumer(Long profileId, LocalDate dateOfProcedure, String toothNumbers){
     return IntraoralTreatmentPlanConsumer.builder()
             .profileId(profileId)
             .dateOfProcedure(dateOfProcedure)
-            .toothNumber(toothNumber)
+            .toothNumbers(toothNumbers)
             .consumerStatus(PENDING)
             .communicationSuccessSent(false)
             .createdDateTime(ZonedDateTime.now())
@@ -201,7 +366,7 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
     updateIntraoralTreatmentPlanConsumer.setUpdatedDateTime(ZonedDateTime.now());
     return updateIntraoralTreatmentPlanConsumer;
   }
-  protected void sendCommunication(Long profileId, LocalDate dateOfProcedure, Integer toothNumber){
+  protected void sendCommunication(Long profileId, LocalDate dateOfProcedure, String toothNumbers){
     String totalBill = "0";
     String totalBalance = "0";
     String totalPayment = "0";
@@ -219,13 +384,13 @@ public class BillServiceBuilder extends BillServiceResponseEntity {
       amountTotal = buildAmountTotalsResponse(totalBill,totalBalance,totalPayment);
     }
 
-    IntraoralTreatmentPlanConsumer consumerSaved =  intraoralTreatmentPlanConsumerRepository.save(buildIntraoralTreatmentPlanConsumer(profileId, dateOfProcedure, toothNumber));
+    IntraoralTreatmentPlanConsumer consumerSaved =  intraoralTreatmentPlanConsumerRepository.save(buildIntraoralTreatmentPlanConsumer(profileId, dateOfProcedure, toothNumbers));
     log.info("IntraoralTreatmentPlanConsumer save : "+ consumerSaved);
 
     IntraoralTreatmentPlanConsumerDto intraoralBillRequestDto = IntraoralTreatmentPlanConsumerDto.builder()
             .consumerId(consumerSaved.getId())
             .profileId(consumerSaved.getProfileId())
-            .toothNumber(consumerSaved.getToothNumber())
+            .toothNumbers(consumerSaved.getToothNumbers())
             .dateOfProcedure(consumerSaved.getDateOfProcedure())
             .amountTotal(amountTotal)
             .build();

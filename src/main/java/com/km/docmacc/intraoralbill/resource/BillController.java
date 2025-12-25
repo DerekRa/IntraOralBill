@@ -1,23 +1,9 @@
 package com.km.docmacc.intraoralbill.resource;
 
-import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.AMOUNT_CHARGED;
-import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.AMOUNT_PAYMENT;
-import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.BREAKDOWN;
-import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.FORWARD_SLASH;
-import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.TOTALS;
-import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.TOTAL_BREAKDOWN;
+import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.*;
 import static org.springframework.http.HttpStatus.OK;
 
-import com.km.docmacc.intraoralbill.model.dto.AmountChargedRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountChargedResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountData;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdown;
-import com.km.docmacc.intraoralbill.model.dto.PaginationRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountPaymentRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountPaymentResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountTotal;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdownResponse;
-import com.km.docmacc.intraoralbill.model.dto.HttpResponse;
+import com.km.docmacc.intraoralbill.model.dto.*;
 import com.km.docmacc.intraoralbill.service.BillService;
 import com.km.docmacc.intraoralbill.service.impl.BillServiceResponseEntity;
 import java.time.LocalDate;
@@ -52,16 +38,16 @@ public class BillController extends BillServiceResponseEntity {
         validationOnBillBreakdownRequest(profileId);
   }
   @GetMapping(FORWARD_SLASH + BREAKDOWN)
-  public ResponseEntity<BillBreakdown> getBillBreakdown(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure,
-      @RequestParam String category, @RequestParam String procedureDone, @RequestParam Integer toothNumber){
-    log.info("Get Bill Breakdown Data Request profileId:{}, dateOfProcedure:{} category:{}, procedureDone:{}, toothNumber:{}",
-        profileId,dateOfProcedure,category,procedureDone,toothNumber);
+  public ResponseEntity<BillBreakdownGroup> getBillBreakdown(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure,
+                                                             @RequestParam String category, @RequestParam String procedureDone, @RequestParam String toothNumbers){
+    log.info("Get Bill Breakdown Data Request profileId:{}, dateOfProcedure:{} category:{}, procedureDone:{}, toothNumbers:{}",
+        profileId,dateOfProcedure,category,procedureDone,toothNumbers);
     AmountData amountData = AmountData.builder()
         .profileId(profileId)
         .dateOfProcedure(dateOfProcedure)
         .category(category)
         .procedureDone(procedureDone)
-        .toothNumber(toothNumber)
+        .toothNumbers(toothNumbers)
         .build();
     return validationOnAmountDataRequest(amountData).getStatusCode().equals(OK) ?
         billService.getIntraOralBillBreakdown(amountData) :
@@ -75,18 +61,34 @@ public class BillController extends BillServiceResponseEntity {
         validationOnAmountTotalRequest(profileId);
   }
   @GetMapping(FORWARD_SLASH + AMOUNT_CHARGED)
-  public ResponseEntity<List<AmountChargedResponse>> getBillAmountCharged(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure,
-      @RequestParam String category, @RequestParam String procedureDone, @RequestParam Integer toothNumber,
-      @RequestParam Integer pageNo, @RequestParam Integer pageSize, @RequestParam String sortBy,
-      @RequestParam String orderBy, @RequestParam String findItem){
-    log.info("Get Bill Amount Charged History Data Request profileId:{}, dateOfProcedure:{} category:{}, procedureDone:{}, toothNumber:{}, orderBy:{}, findItem:{}, sortBy:{}, pageNo:{}, pageSize:{}",
-        profileId,dateOfProcedure,category,procedureDone,toothNumber,orderBy,findItem,sortBy,pageNo,pageSize);
+  public ResponseEntity<AmountChargedResponse> getBillAmountCharged(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure,
+                                                                           @RequestParam String category, @RequestParam String procedureDone, @RequestParam String toothNumbers){
+    log.info("Get Bill Amount Charged Data Request profileId:{}, dateOfProcedure:{} category:{}, procedureDone:{}, toothNumbers:{}",
+        profileId,dateOfProcedure,category,procedureDone,toothNumbers);
+    AmountChargedRequest getAmountCharged = AmountChargedRequest.builder()
+            .profileId(profileId)
+            .dateOfProcedure(dateOfProcedure)
+            .category(category)
+            .procedureDone(procedureDone)
+            .toothNumbers(toothNumbers)
+            .build();
+    return validationOnAmountChargedRequest(getAmountCharged).getStatusCode().equals(OK) ?
+        billService.getAmountCharged(getAmountCharged) :
+        validationOnAmountChargedRequest(getAmountCharged);
+  }
+  @GetMapping(FORWARD_SLASH + AMOUNT_CHARGED + FORWARD_SLASH + HISTORY)
+  public ResponseEntity<List<AmountChargedHistoryResponse>> getBillAmountChargedHistory(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure,
+                                                                                        @RequestParam String category, @RequestParam String procedureDone, @RequestParam String toothNumbers,
+                                                                                        @RequestParam Integer pageNo, @RequestParam Integer pageSize, @RequestParam String sortBy,
+                                                                                        @RequestParam String orderBy, @RequestParam String findItem){
+    log.info("Get Bill Amount Charged History Data Request profileId:{}, dateOfProcedure:{} category:{}, procedureDone:{}, toothNumbers:{}, orderBy:{}, findItem:{}, sortBy:{}, pageNo:{}, pageSize:{}",
+        profileId,dateOfProcedure,category,procedureDone,toothNumbers,orderBy,findItem,sortBy,pageNo,pageSize);
     PaginationRequest paginationRequest = PaginationRequest.builder()
         .profileId(profileId)
         .dateOfProcedure(dateOfProcedure)
         .category(category)
         .procedureDone(procedureDone)
-        .toothNumber(toothNumber)
+        .toothNumbers(toothNumbers)
         .orderBy(orderBy)
         .findItem(findItem)
         .sortBy(sortBy)
@@ -94,22 +96,22 @@ public class BillController extends BillServiceResponseEntity {
         .pageSize(pageSize)
         .build();
     return validationOnAmountChargedRequest(paginationRequest).getStatusCode().equals(OK) ?
-        billService.getAmountCharged(paginationRequest) :
+        billService.getAmountChargedHistory(paginationRequest) :
         validationOnAmountChargedRequest(paginationRequest);
   }
   @GetMapping(FORWARD_SLASH + AMOUNT_PAYMENT)
   public ResponseEntity<List<AmountPaymentResponse>> getBillAmountPayment(@RequestParam Long profileId, @RequestParam LocalDate dateOfProcedure,
-      @RequestParam String category, @RequestParam String procedureDone, @RequestParam Integer toothNumber,
+      @RequestParam String category, @RequestParam String procedureDone, @RequestParam String toothNumbers,
       @RequestParam Integer pageNo, @RequestParam Integer pageSize, @RequestParam String sortBy,
       @RequestParam String orderBy, @RequestParam String findItem){
     log.info("Get Bill Amount Payment History Data Request profileId:{}, dateOfProcedure:{}, category:{}, procedureDone:{}, toothNumber:{}, orderBy:{}, findItem:{}, sortBy:{}, pageNo:{}, pageSize:{}",
-        profileId,dateOfProcedure,category,procedureDone,toothNumber,orderBy,findItem,sortBy,pageNo,pageSize);
+        profileId,dateOfProcedure,category,procedureDone,toothNumbers,orderBy,findItem,sortBy,pageNo,pageSize);
     PaginationRequest paginationRequest = PaginationRequest.builder()
         .profileId(profileId)
         .dateOfProcedure(dateOfProcedure)
         .category(category)
         .procedureDone(procedureDone)
-        .toothNumber(toothNumber)
+        .toothNumbers(toothNumbers)
         .orderBy(orderBy)
         .findItem(findItem)
         .sortBy(sortBy)

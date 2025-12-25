@@ -9,10 +9,12 @@ import org.springframework.http.ResponseEntity;
 public interface BillService {
 
   ResponseEntity<BillBreakdownResponse> getIntraOralBill(Long profileId, LocalDate dateOfProcedure);
-  ResponseEntity<BillBreakdown> getIntraOralBillBreakdown(AmountData amountData);
+  ResponseEntity<BillBreakdownGroup> getIntraOralBillBreakdown(AmountData amountData);
   ResponseEntity<AmountTotal> getIntraOralAmountTotals(Long profileId, LocalDate dateOfProcedure);
-  ResponseEntity<List<AmountChargedResponse>> getAmountCharged(
-      PaginationRequest dataPaginationRequest);
+  ResponseEntity<AmountChargedResponse> getAmountCharged(
+          AmountChargedRequest amountChargedRequest);
+  ResponseEntity<List<AmountChargedHistoryResponse>> getAmountChargedHistory(
+          PaginationRequest dataPaginationRequest);
   ResponseEntity<List<AmountPaymentResponse>> getAmountPayment(
       PaginationRequest dataPaginationRequest);
   ResponseEntity<HttpResponse> insertAmountCharged(AmountChargedRequest amountChargedRequest);

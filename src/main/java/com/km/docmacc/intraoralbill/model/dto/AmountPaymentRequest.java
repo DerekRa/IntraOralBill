@@ -15,7 +15,7 @@ public class AmountPaymentRequest {
   private String note;
   private String category;
   private String procedureDone;
-  private Integer toothNumber;
+  private String toothNumbers;
   private String createdByName;
   private String createdById;
 }

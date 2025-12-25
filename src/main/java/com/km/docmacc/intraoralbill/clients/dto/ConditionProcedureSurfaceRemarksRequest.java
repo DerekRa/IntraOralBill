@@ -10,6 +10,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConditionProcedureSurfaceRemarksRequest {
+  private String rootCanalTreatmentNote;
   private String restorationInlayOther;
   private String restorationInlayNote;
   private String restorationOnlayOther;

@@ -14,16 +14,8 @@ import static com.km.docmacc.intraoralbill.constants.BillGlobalConstants.TOOTH_N
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.OK;
 
-import com.km.docmacc.intraoralbill.model.dto.AmountChargedRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountChargedResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountData;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdown;
-import com.km.docmacc.intraoralbill.model.dto.PaginationRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountPaymentRequest;
-import com.km.docmacc.intraoralbill.model.dto.AmountPaymentResponse;
-import com.km.docmacc.intraoralbill.model.dto.AmountTotal;
-import com.km.docmacc.intraoralbill.model.dto.BillBreakdownResponse;
-import com.km.docmacc.intraoralbill.model.dto.HttpResponse;
+import com.km.docmacc.intraoralbill.model.dto.*;
+
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +26,7 @@ import org.springframework.http.ResponseEntity;
 @Slf4j
 public class BillServiceResponseEntity {
 
-  protected ResponseEntity<BillBreakdownResponse> validationOnBillBreakdownRequest(Long profileId){
+  protected ResponseEntity<BillBreakdownResponse>  validationOnBillBreakdownRequest(Long profileId){
     HttpHeaders headers = new HttpHeaders();
     BillBreakdownResponse billBreakdownResponse = new BillBreakdownResponse();
     if(profileId<= 0L){
@@ -54,28 +46,50 @@ public class BillServiceResponseEntity {
 
     return responseAmountTotal(amountTotal, headers, OK);
   }
-  protected ResponseEntity<List<AmountChargedResponse>> validationOnAmountChargedRequest(
+  protected ResponseEntity<AmountChargedResponse> validationOnAmountChargedRequest(
+          AmountChargedRequest getAmountCharged){
+    AmountChargedResponse amountChargedHistoryResponse = new AmountChargedResponse();
+    if(getAmountCharged.getProfileId() <= 0L){
+      log.warn("The Appointment Profile ID to save is different.");
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponse);
+    }
+    if(getAmountCharged.getCategory().isEmpty()){
+      log.warn("The Patient Category field is empty.");
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponse);
+    }
+    if(getAmountCharged.getProcedureDone().isEmpty()){
+      log.warn("The Patient Procedure Done field is empty.");
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponse);
+    }
+    if(getAmountCharged.getToothNumbers().isEmpty()){
+      log.warn("The Patient Tooth Number field is empty.");
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponse);
+    }
+
+    return responseAmountCharged(OK, amountChargedHistoryResponse);
+  }
+  protected ResponseEntity<List<AmountChargedHistoryResponse>> validationOnAmountChargedRequest(
       PaginationRequest paginationRequest){
     HttpHeaders headers = new HttpHeaders();
-    List<AmountChargedResponse> amountChargedResponseList = new ArrayList<AmountChargedResponse>();
+    List<AmountChargedHistoryResponse> amountChargedHistoryResponseList = new ArrayList<AmountChargedHistoryResponse>();
     if(paginationRequest.getProfileId() <= 0L){
       log.warn("The Appointment Profile ID to save is different.");
-      return responseAmountCharged(BAD_REQUEST, amountChargedResponseList);
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponseList);
     }
     if(paginationRequest.getCategory().isEmpty()){
       log.warn("The Patient Category field is empty.");
-      return responseAmountCharged(BAD_REQUEST, amountChargedResponseList);
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponseList);
     }
     if(paginationRequest.getProcedureDone().isEmpty()){
       log.warn("The Patient Procedure Done field is empty.");
-      return responseAmountCharged(BAD_REQUEST, amountChargedResponseList);
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponseList);
     }
-    if(paginationRequest.getToothNumber() <= 0){
+    if(paginationRequest.getToothNumbers().isEmpty()){
       log.warn("The Patient Tooth Number field is empty.");
-      return responseAmountCharged(BAD_REQUEST, amountChargedResponseList);
+      return responseAmountCharged(BAD_REQUEST, amountChargedHistoryResponseList);
     }
 
-    return responseAmountCharged(OK, amountChargedResponseList);
+    return responseAmountCharged(OK, amountChargedHistoryResponseList);
   }
   protected ResponseEntity<List<AmountPaymentResponse>> validationOnAmountPaymentRequest(
       PaginationRequest paginationRequest){
@@ -93,16 +107,16 @@ public class BillServiceResponseEntity {
       log.warn("The Patient Procedure Done field is empty.");
       return responseAmountPayment(BAD_REQUEST, amountPaymentResponseList);
     }
-    if(paginationRequest.getToothNumber() <= 0){
+    if(paginationRequest.getToothNumbers().isEmpty()){
       log.warn("The Patient Tooth Number field is empty.");
       return responseAmountPayment(BAD_REQUEST, amountPaymentResponseList);
     }
 
     return responseAmountPayment(OK, amountPaymentResponseList);
   }
-  protected ResponseEntity<BillBreakdown> validationOnAmountDataRequest(
+  protected ResponseEntity<BillBreakdownGroup> validationOnAmountDataRequest(
       AmountData paginationRequest){
-    BillBreakdown billBreakdownResponse = new BillBreakdown();
+    BillBreakdownGroup billBreakdownResponse = new BillBreakdownGroup();
     if(paginationRequest.getProfileId() <= 0L){
       log.warn("The Appointment Profile ID to save is different.");
       return responseAmountData(BAD_REQUEST, billBreakdownResponse);
@@ -115,7 +129,7 @@ public class BillServiceResponseEntity {
       log.warn("The Patient Procedure Done field is empty.");
       return responseAmountData(BAD_REQUEST, billBreakdownResponse);
     }
-    if(paginationRequest.getToothNumber() <= 0){
+    if(paginationRequest.getToothNumbers().isEmpty()){
       log.warn("The Patient Tooth Number field is empty.");
       return responseAmountData(BAD_REQUEST, billBreakdownResponse);
     }
@@ -148,7 +162,7 @@ public class BillServiceResponseEntity {
       log.warn("The procedure done being save is empty.");
       return response(BAD_REQUEST, amountChargedRequest.getChargedAmount() + DASH + SAVE + PROCEDURE_DONE_EMPTY);
     }
-    if(amountChargedRequest.getToothNumber() <= 0){
+    if(amountChargedRequest.getToothNumbers().isEmpty()){
       log.warn("The tooth number done being save is empty.");
       return response(BAD_REQUEST, amountChargedRequest.getChargedAmount() + DASH + SAVE + TOOTH_NUMBER_EMPTY);
     }
@@ -184,7 +198,7 @@ public class BillServiceResponseEntity {
       log.warn("The procedure done being save is empty.");
       return response(BAD_REQUEST, amountPaymentRequest.getPaymentAmount() + DASH + SAVE + PROCEDURE_DONE_EMPTY);
     }
-    if(amountPaymentRequest.getToothNumber() <= 0){
+    if(amountPaymentRequest.getToothNumbers().isEmpty()){
       log.warn("The tooth number done being save is empty.");
       return response(BAD_REQUEST, amountPaymentRequest.getPaymentAmount() + DASH + SAVE + TOOTH_NUMBER_EMPTY);
     }
@@ -202,26 +216,31 @@ public class BillServiceResponseEntity {
   protected ResponseEntity<BillBreakdownResponse> responseBillBreakdown(BillBreakdownResponse billBreakdownResponse, HttpHeaders headers, HttpStatus httpStatus){
     return new ResponseEntity<BillBreakdownResponse>(billBreakdownResponse, headers, httpStatus);
   }
-  protected ResponseEntity<BillBreakdown> responseBillBreakdown(BillBreakdown billBreakdownResponse, HttpHeaders headers, HttpStatus httpStatus){
-    return new ResponseEntity<BillBreakdown>(billBreakdownResponse, headers, httpStatus);
+  protected ResponseEntity<BillBreakdownGroup> responseBillBreakdown(BillBreakdownGroup billBreakdownResponse, HttpHeaders headers, HttpStatus httpStatus){
+    return new ResponseEntity<BillBreakdownGroup>(billBreakdownResponse, headers, httpStatus);
   }
   protected ResponseEntity<AmountTotal> responseAmountTotal(AmountTotal amountTotal, HttpHeaders headers, HttpStatus httpStatus){
     return new ResponseEntity<AmountTotal>(amountTotal, headers, httpStatus);
   }
-  protected ResponseEntity<List<AmountChargedResponse>> responseAmountCharged(HttpStatus httpStatus, List<AmountChargedResponse> responseDtos) {
+  protected ResponseEntity<AmountChargedResponse> responseAmountCharged(HttpStatus httpStatus, AmountChargedResponse responseDtos) {
     HttpHeaders headers = new HttpHeaders();
     /*headers.setContentType(MediaType.TEXT_HTML);*/
-    return new ResponseEntity<List<AmountChargedResponse>>(responseDtos, headers, httpStatus);
+    return new ResponseEntity<AmountChargedResponse>(responseDtos, headers, httpStatus);
+  }
+  protected ResponseEntity<List<AmountChargedHistoryResponse>> responseAmountCharged(HttpStatus httpStatus, List<AmountChargedHistoryResponse> responseDtos) {
+    HttpHeaders headers = new HttpHeaders();
+    /*headers.setContentType(MediaType.TEXT_HTML);*/
+    return new ResponseEntity<List<AmountChargedHistoryResponse>>(responseDtos, headers, httpStatus);
   }
   protected ResponseEntity<List<AmountPaymentResponse>> responseAmountPayment(HttpStatus httpStatus, List<AmountPaymentResponse> responseDtos) {
     HttpHeaders headers = new HttpHeaders();
     /*headers.setContentType(MediaType.TEXT_HTML);*/
     return new ResponseEntity<List<AmountPaymentResponse>>(responseDtos, headers, httpStatus);
   }
-  protected ResponseEntity<BillBreakdown> responseAmountData(HttpStatus httpStatus, BillBreakdown responseDtos) {
+  protected ResponseEntity<BillBreakdownGroup> responseAmountData(HttpStatus httpStatus, BillBreakdownGroup responseDtos) {
     HttpHeaders headers = new HttpHeaders();
     /*headers.setContentType(MediaType.TEXT_HTML);*/
-    return new ResponseEntity<BillBreakdown>(responseDtos, headers, httpStatus);
+    return new ResponseEntity<BillBreakdownGroup>(responseDtos, headers, httpStatus);
   }
   protected ResponseEntity<HttpResponse> response(HttpStatus httpStatus, String message) {
     return new ResponseEntity<>(new HttpResponse(httpStatus.value(), httpStatus, httpStatus.getReasonPhrase().toUpperCase(),

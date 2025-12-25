@@ -14,7 +14,7 @@ import java.time.LocalDate;
 public class IntraoralTreatmentPlanConsumerDto {
     private Long consumerId;
     private Long profileId;
-    private Integer toothNumber;
+    private String toothNumbers;
     private LocalDate dateOfProcedure;
     private AmountTotal amountTotal;
 }

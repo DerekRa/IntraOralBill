@@ -15,5 +15,5 @@ import lombok.experimental.SuperBuilder;
 public class IntraOralData extends AmountDateCreated {
   private String category;
   private String procedureDone;
-  private Integer toothNumber;
+  private String toothNumbers;
 }

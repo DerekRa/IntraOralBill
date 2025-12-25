@@ -27,7 +27,7 @@ public class IntraoralTreatmentPlanConsumer extends CreateUpdateDateTime impleme
     private Long id;
     private Long profileId;
     private LocalDate dateOfProcedure;
-    private Integer toothNumber;
+    private String toothNumbers;
     private Boolean communicationSuccessSent;
     private String consumerStatus;
 }

@@ -11,5 +11,5 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @NoArgsConstructor
 public class BillBreakdownResponse extends AmountTotal{
-  private List<BillBreakdown> billBreakdowns;
+  private List<BillBreakdownGroup> billBreakdowns;
 }

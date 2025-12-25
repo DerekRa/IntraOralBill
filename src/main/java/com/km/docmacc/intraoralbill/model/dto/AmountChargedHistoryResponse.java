@@ -5,21 +5,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
 @Data
 @SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AmountChargedRequest {
-  private Long profileId;
-  private LocalDate dateOfProcedure;
+public class AmountChargedHistoryResponse extends AmountDateCreated {
   private String chargedAmount;
   private String discount;
   private String note;
-  private String category;
-  private String procedureDone;
-  private String toothNumbers;
-  private String createdByName;
-  private String createdById;
 }

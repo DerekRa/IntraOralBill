@@ -1,7 +1,6 @@
 package com.km.docmacc.intraoralbill.model.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -10,8 +9,8 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AmountChargedResponse extends AmountDateCreated {
-  private String chargedAmount;
-  private String discount;
-  private String note;
+public class AmountChargedResponse extends AmountChargedRequest{
+    private Double amountPaid;
+    private Double payment;
+    private Double balance;
 }

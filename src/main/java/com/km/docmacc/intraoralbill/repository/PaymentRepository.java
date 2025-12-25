@@ -16,14 +16,14 @@ import org.springframework.stereotype.Repository;
 public interface PaymentRepository extends
     JpaRepository<AmountPayment, Long> {
 
-  Optional<List<AmountPayment>> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDone(Long profileId, LocalDate dateOfProcedure, String category, Integer toothNumber, String procedureDone);
-  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDone(Long profileId, LocalDate dateOfProcedure, String category, Integer toothNumber, String procedureDone, Pageable paging);
-  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDoneAndPaymentAmountLike(Long profileId, LocalDate dateOfProcedure, String category, Integer toothNumber, String procedureDone, String paymentAmount, Pageable paging);
-  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDoneAndNoteLike(Long profileId, LocalDate dateOfProcedure, String category, Integer toothNumber, String procedureDone, String note, Pageable paging);
-  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDoneAndCreatedByNameLike(Long profileId, LocalDate dateOfProcedure, String category, Integer toothNumber, String procedureDone, String createdByName, Pageable paging);
-  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumberAndProcedureDoneAndCreatedDate(Long profileId, LocalDate dateOfProcedure, String category, Integer toothNumber, String procedureDone, LocalDate createdDate, Pageable paging);
-  @Query("FROM AmountPayment i WHERE i.profileId = :profileId AND i.dateOfProcedure = :dateOfProcedure AND i.category = :category AND i.toothNumber = :toothNumber AND i.procedureDone = :procedureDone AND " +
+  List<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDone(Long profileId, LocalDate dateOfProcedure, String category, String toothNumbers, String procedureDone);
+  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDone(Long profileId, LocalDate dateOfProcedure, String category, String toothNumbers, String procedureDone, Pageable paging);
+  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDoneAndPaymentAmountLike(Long profileId, LocalDate dateOfProcedure, String category, String toothNumbers, String procedureDone, String paymentAmount, Pageable paging);
+  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDoneAndNoteLike(Long profileId, LocalDate dateOfProcedure, String category, String toothNumbers, String procedureDone, String note, Pageable paging);
+  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDoneAndCreatedByNameLike(Long profileId, LocalDate dateOfProcedure, String category, String toothNumbers, String procedureDone, String createdByName, Pageable paging);
+  Page<AmountPayment> findByProfileIdAndDateOfProcedureAndCategoryAndToothNumbersAndProcedureDoneAndCreatedDate(Long profileId, LocalDate dateOfProcedure, String category, String toothNumbers, String procedureDone, LocalDate createdDate, Pageable paging);
+  @Query("FROM AmountPayment i WHERE i.profileId = :profileId AND i.dateOfProcedure = :dateOfProcedure AND i.category = :category AND i.toothNumbers = :toothNumbers AND i.procedureDone = :procedureDone AND " +
       "(i.paymentAmount like :columnValue OR i.note like :columnValue OR i.createdByName like :columnValue)")
-  Page<AmountPayment> findPatientAmountPayment(@Param("profileId") Long profileId, @Param("dateOfProcedure") LocalDate dateOfProcedure, @Param("category") String category, @Param("toothNumber") Integer toothNumber,
+  Page<AmountPayment> findPatientAmountPayment(@Param("profileId") Long profileId, @Param("dateOfProcedure") LocalDate dateOfProcedure, @Param("category") String category, @Param("toothNumbers") String toothNumber,
       @Param("procedureDone") String procedureDone, @Param("columnValue") String columnValue, Pageable paging);
 }

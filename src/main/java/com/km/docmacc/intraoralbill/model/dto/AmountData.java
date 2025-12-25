@@ -15,5 +15,5 @@ public class AmountData {
   private LocalDate dateOfProcedure;
   private String category;
   private String procedureDone;
-  private Integer toothNumber;
+  private String toothNumbers;
 }
