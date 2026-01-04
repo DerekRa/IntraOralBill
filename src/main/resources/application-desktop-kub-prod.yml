@@ -1,0 +1,9 @@
+
+spring:
+  config:
+    import: configserver:${CONFIG_SERVER_URL:https://localhost:9296}
+
+item:
+  request:
+    url:
+      intraoralExamination: intraoral-examination-svc
