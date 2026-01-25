@@ -46,7 +46,7 @@ spring:
           destination: send-IntraoralBill
       kafka:
         binder:
-          brokers: ${KAFKA_BROKERS:https://localhost:9092}
+          brokers: ${DB_HOST:https://localhost}:9092
 
 item:
   request:
