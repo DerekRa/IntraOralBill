@@ -13,7 +13,7 @@ spring:
   application:
     name: ${SERVICE_NAME:IntraOralBillService}
   profiles:
-    active: ${ACTIVE_PROFILE:nitro-dev} #nitro-dev or desktop-prod or macc-prod or nitro-kub-prod
+    active: ${ACTIVE_PROFILE:desktop-dev} #nitro-dev or desktop-prod or macc-prod or nitro-kub-prod
   cloud:
     function:
       definition: intraOralTreatmentPlanConsumerFunction

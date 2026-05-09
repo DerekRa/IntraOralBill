@@ -1,9 +1,9 @@
 spring:
   config:
-    import: configserver:${CONFIG_SERVER_URL:https://localhost:9296}
+    import: optional:configserver:http://localhost:9296/config-server
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/DocMACCdbBill
-    password: d0cm3yAnn3.dbc0Nn3kTz #change this to your database username
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/DocMACCdbBill
+    password: Qwerty.12345 #change this to your database username
     username: root #change this to your database password
     driverClassName: com.mysql.cj.jdbc.Driver
   jpa:
@@ -25,4 +25,4 @@ spring:
 item:
   request:
     url:
-      intraoralExamination: intraoral-examination-svc
+      intraoralExamination: localhost:8085
